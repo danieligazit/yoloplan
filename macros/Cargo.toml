@@ -1,0 +1,10 @@
+[package]
+name = "macros"
+version = "0.1.0"
+authors = ["DanielGazit <danieligazit@gmail.com>"]
+
+[lib]
+crate_type = ["proc-macro"]
+
+[dependencies]
+codegen = "0.1.3"
