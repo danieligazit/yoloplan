@@ -1,8 +1,7 @@
 use super::Extracted;
 use serde::{Deserialize, Serialize};
 
-
-#[destination_queue("event.music")]
+// #[destination_queue("event.music")]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MusicEvent{
     pub artists: Vec<String>,

@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::str;
 use scraper::Html;
 use scraper::Selector;
 use async_trait::async_trait;
@@ -8,8 +9,8 @@ pub struct BachTrackExtractor {}
 
 #[async_trait]
 impl Extractor for BachTrackExtractor{
-    async fn extract(&self, url: &str) -> ExtractorResult{
-        let webpage: String =  get_webpage(url).await?;
+    async fn extract(&self, configuration: &Vec<u8>) -> ExtractorResult{
+        let webpage: String =  get_webpage(str::from_utf8(&configuration)?).await?;
         let events: Vec<Box<dyn Extracted>> = parse_bachtrack_html(webpage)?; 
         Ok(events)
     }
