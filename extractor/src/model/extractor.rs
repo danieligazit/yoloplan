@@ -1,13 +1,29 @@
 use async_trait::async_trait;
 use std::error::Error;
+use serde;
+use serde::{Serialize};
+
 
 #[async_trait]
-pub trait Extractor {
-    async fn extract(&self, config: &Vec<u8>) ->  Result<Vec<Box<dyn Extracted>>, Box<dyn Error>>;
+pub trait Extractor{
+    async fn extract(&self, config: &Vec<u8>) -> ExtractResult;
 }
 
-pub trait Extracted {
+#[derive(Serialize, Debug)]
+pub enum Extracted {
+    MusicEvent{artists: Vec<String>, location: String},
+}
+
+pub trait ToQueue {
     fn get_queue_name(&self) -> String;
 }
 
-pub type ExtractorResult = Result<Vec<Box<dyn Extracted>>, Box<dyn Error>>;
+impl ToQueue for Extracted {
+    fn get_queue_name(&self) -> String {
+        match self {
+            Extracted::MusicEvent{artists: _, location: _} => "extract.event.music".to_owned(),
+        }
+    }
+}
+
+pub type ExtractResult = Result<Vec<Extracted>, Box<dyn Error>>;

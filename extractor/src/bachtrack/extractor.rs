@@ -3,16 +3,16 @@ use std::str;
 use scraper::Html;
 use scraper::Selector;
 use async_trait::async_trait;
-use crate::model::{Extractor, Extracted, errors, MusicEvent, ExtractorResult};
+use crate::model::{Extractor, Extracted, errors, ExtractResult};
 
+#[derive(Copy, Clone)]
 pub struct BachTrackExtractor {}
 
 #[async_trait]
 impl Extractor for BachTrackExtractor{
-    async fn extract(&self, configuration: &Vec<u8>) -> ExtractorResult{
+    async fn extract(&self, configuration: &Vec<u8>) -> ExtractResult{
         let webpage: String =  get_webpage(str::from_utf8(&configuration)?).await?;
-        let events: Vec<Box<dyn Extracted>> = parse_bachtrack_html(webpage)?; 
-        Ok(events)
+        Ok(parse_bachtrack_html(webpage)?)
     }
 } 
 
@@ -26,18 +26,15 @@ pub async fn get_webpage(url: &str) -> Result<String, Box<dyn Error>> {
     Ok(body)
 }
 
-pub fn parse_bachtrack_html(body: String) -> ExtractorResult {
-    let mut events = Vec::new();
+pub fn parse_bachtrack_html(body: String) -> ExtractResult {
+    let mut events: Vec<Extracted> = Vec::new();
 
     let document = Html::parse_document(&body);
     let selector = Selector::parse("div.listing-shortform.listing-medium-1.li-shortform-premium").unwrap();
 
     for element in document.select(&selector) {
         match get_event_from_element(element) {
-            Ok(event) => {
-                let extracted_event: Box<dyn Extracted> = Box::new(event);
-                events.push(extracted_event);
-            },
+            Ok(event) => events.push(event),
             Err(_) => println!("could not parse element")
         }
     }
@@ -45,13 +42,11 @@ pub fn parse_bachtrack_html(body: String) -> ExtractorResult {
     Ok(events)
 }
 
-pub fn get_event_from_element(element: scraper::element_ref::ElementRef) -> Result<MusicEvent, Box<dyn Error>>{
-    let event = MusicEvent{
+pub fn get_event_from_element(element: scraper::element_ref::ElementRef) -> Result<Extracted, Box<dyn Error>>{
+    Ok(Extracted::MusicEvent{
         artists: get_artists_from_element(element)?,
         location: String::from("your house")
-    };
-
-    Ok(event)
+    })
 }
 
 
