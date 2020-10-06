@@ -8,19 +8,23 @@ use {
 };
 
 
+const SERVER_ADDRESS: &str = "127.0.0.1:8080";
+const LOG_FORMAT: &str = "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T";
+
+
 #[actix_web::main]
 async fn main() -> Result<()> {
-    configure_logger();
+    config_logger();
 
     HttpServer::new(|| {
         App::new()
-            .wrap(middleware::Logger::new("%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T"))
+            .wrap(middleware::Logger::new(LOG_FORMAT))
             .configure(main_config)
-    }).bind("127.0.0.1:8080")?.run().await
+    }).bind(SERVER_ADDRESS)?.run().await
 }
 
 /// Set configurations for the app logger
-fn configure_logger() {
+fn config_logger() {
     std::env::set_var("RUST_LOG", "actix_web=info");
 
     env_logger::builder()
