@@ -9,6 +9,8 @@ edition = "2018"
 [dependencies]
 actix-web = "*"
 serde = "*"
+serde_json = "*"
 log = "*"
 env_logger = "*"
 chrono = "*"
+nats = "0.8.0"
