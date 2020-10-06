@@ -1,19 +1,16 @@
 use {
     std::{io::Result},
+    api::main_config,
     actix_web::{
-        get, App, HttpResponse, HttpServer
+        App, HttpServer, middleware
     }
 };
-use actix_web::Responder;
-
-#[get("/")]
-async fn index() -> impl Responder {
-    HttpResponse::Ok().body("Welcome to Yoloplan API")
-}
 
 #[actix_web::main]
 async fn main() -> Result<()> {
     HttpServer::new(|| {
-        App::new().service(index)
+        App::new()
+            .wrap(middleware::Logger::default())
+            .configure(main_config)
     }).bind("127.0.0.1:8080")?.run().await
 }
