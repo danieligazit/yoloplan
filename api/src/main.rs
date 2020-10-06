@@ -12,6 +12,8 @@ const SERVER_ADDRESS: &str = "127.0.0.1:8080";
 const LOG_FORMAT: &str = "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T";
 
 
+
+/// API entry point
 #[actix_web::main]
 async fn main() -> Result<()> {
     config_logger();
@@ -23,7 +25,6 @@ async fn main() -> Result<()> {
     }).bind(SERVER_ADDRESS)?.run().await
 }
 
-/// Set configurations for the app logger
 fn config_logger() {
     std::env::set_var("RUST_LOG", "actix_web=info");
 
