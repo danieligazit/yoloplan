@@ -1,9 +1,13 @@
 mod bachtrack;
 mod model;
-use nats::asynk as nats; 
-use std::sync::Arc;
-use crate::model::extractor::Extractor;
-use crate::model::extractor::ToQueue;
+
+use {
+    nats::asynk as nats,
+    std::sync::Arc,
+    crate::model::extractor::Extractor,
+    crate::model::extractor::ToQueue,
+};
+
 const MAX_CONCURRENT_MESSAGES: usize = 100;
 
 extern crate tokio;

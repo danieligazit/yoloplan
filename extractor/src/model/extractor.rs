@@ -21,7 +21,7 @@ pub trait ToQueue {
 impl ToQueue for Extracted {
     fn get_queue_name(&self) -> String {
         match self {
-            Extracted::MusicEvent{artists: _, location: _} => "extract.event.music".to_owned(),
+            Extracted::MusicEvent{artists: _, location: _} => "identifier.event.music".to_owned(),
         }
     }
 }
