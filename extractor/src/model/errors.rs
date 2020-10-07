@@ -31,3 +31,19 @@ impl Error for DateTimeCalculationError {
     }
 }
 
+
+#[derive(Debug)]
+pub struct RegexDidNotMatchError;
+
+impl fmt::Display for RegexDidNotMatchError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Failed to match regex")
+    }
+}
+
+impl Error for RegexDidNotMatchError {
+    fn description(&self) -> &str {
+        "Failed to match regex"
+    }
+}
+
