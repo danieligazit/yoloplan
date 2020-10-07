@@ -3,7 +3,7 @@ mod model;
 use {
     nats::asynk as nats,
     std::sync::Arc,
-    crate::model::datasource::{Datasource, ToQueue},
+    crate::model::Datasource,
     crate::model::http_client::WebpageHttpClient,
 };
 
@@ -12,9 +12,9 @@ const MAX_CONCURRENT_MESSAGES: usize = 100;
 extern crate tokio;
 
 #[tokio::main]
-async fn main() {  
+async fn main() {
     tokio::join!(
-        setup_datasource(datasources::bachtrack_discovery::DSBachTrackDiscovery::new(
+        setup_datasource(datasources::bachtrack::discovery::DS::new(
             WebpageHttpClient::new()
         )),
     );
