@@ -5,12 +5,13 @@ use {
     chrono::{NaiveDateTime, Duration},
     scraper::Selector,
     async_trait::async_trait,
-    crate::model::{Datasource, ExtractResult, EventTime, Extracted, MusicEvent, Person, Piece},
+    crate::model::{Datasource, ExtractResult, EventTime, Extracted, Configuration, MusicEvent, Person, Piece},
     crate::model::http_client::{HttpClient},
     crate::model::errors,
     regex::Regex,
 };
 
+pub const BASE_URL: &str = "https://bachtrack.com";
 pub const DS_NAME: &str = "datasource.bachtrack_listing";
 const DEFAULT_EVENT_LENGTH: i64 = 2;
 
@@ -29,7 +30,11 @@ impl<H: HttpClient> DS<H>{
 #[async_trait]
 impl<H: HttpClient + Send + Sync> Datasource for DS<H>{
     async fn extract(&self, configuration: &Vec<u8>) -> ExtractResult{
-        let webpage: String = self.http_client.get(str::from_utf8(&configuration)?).await?;
+        println!("extracting with configuration {:#?}", &str::from_utf8(&configuration));
+
+        let ds_config: Configuration = serde_json::from_slice(&configuration)?;
+
+        let webpage: String = self.http_client.get(&format!("{}{}", BASE_URL, &ds_config.value)).await?;
         Ok(parse_bachtrack_html(&webpage)?)
     }
     

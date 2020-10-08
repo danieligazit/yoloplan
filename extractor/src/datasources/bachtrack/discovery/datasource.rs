@@ -3,7 +3,7 @@ use {
     scraper::Html,
     scraper::Selector,
     async_trait::async_trait,
-    crate::model::{Extracted, Datasource, ExtractResult},
+    crate::model::{Extracted, Datasource, ExtractResult, Configuration},
     crate::model::http_client::{HttpClient},
 };
 
@@ -23,6 +23,7 @@ impl<H: HttpClient> DS<H>{
 #[async_trait]
 impl<H: HttpClient + Send + Sync> Datasource for DS<H>{
     async fn extract(&self, configuration: &Vec<u8>) -> ExtractResult{
+        println!("extracting with configuration {}", str::from_utf8(&configuration)?);
         let webpage: String = self.http_client.get(str::from_utf8(&configuration)?).await?;
         Ok(parse_bachtrack_html(&webpage)?)
     }
@@ -46,7 +47,7 @@ pub fn parse_bachtrack_html(body: &str) -> ExtractResult {
                 continue;
             }
         };
-        listings.push(Extracted::Configuration{ds_name: "datasource.bachtrack".to_owned(), value: listing_url.as_bytes().to_vec()});
+        listings.push(Extracted::Configuration(Configuration{ds_name: super::super::listing::DS_NAME.to_owned(), value: listing_url.to_string()}));
     }
 
     Ok(listings)

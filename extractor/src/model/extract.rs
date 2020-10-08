@@ -1,45 +1,45 @@
 use {
-    serde::{Serialize},
+    serde::{Serialize, Deserialize},
     chrono::NaiveDateTime,
 };
 
-#[derive(Serialize, Debug, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
 pub struct EventTime {
     pub start_time: NaiveDateTime,
     pub end_time: NaiveDateTime,
     pub local_timezone: bool,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct City {
     pub name: String,
     pub country: Country,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Country{
     pub name: String,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Venue {
     pub name: String,
     pub address: String,
     pub city: City,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize,Deserialize,  Debug, PartialEq, Clone)]
 pub struct Person {
     pub name: String,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Piece {
     pub name: String,
     pub artists: Vec<Person>,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct MusicEvent{
     pub artists: Vec<Person>,
     pub pieces: Vec<Piece>,
@@ -49,7 +49,14 @@ pub struct MusicEvent{
     pub time: EventTime,
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct Configuration{
+    pub ds_name: String, 
+    pub value: String, 
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(untagged)]
 pub enum Extracted {
     MusicEvent(MusicEvent),
     Venue(Venue),
@@ -57,7 +64,7 @@ pub enum Extracted {
     Country(Country),
     Person(Person),
     Piece(Piece),
-    Configuration{ds_name: String, value: Vec<u8>},
+    Configuration(Configuration),
 }
 
 
@@ -70,7 +77,7 @@ impl Extracted {
             Extracted::Person(_) => "normalizer.performer".to_owned(),
             Extracted::City(_) => "normalizer.city".to_owned(),
             Extracted::Piece(_) => "normalizer.piece".to_owned(),
-            Extracted::Configuration{ds_name, value: _} => ds_name.to_owned(),
+            Extracted::Configuration(config) => config.ds_name.to_owned(),
         }
     }
 }   

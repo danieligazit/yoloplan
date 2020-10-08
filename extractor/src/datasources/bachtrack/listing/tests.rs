@@ -23,7 +23,7 @@ fn test_extracor() -> Result<(), Box<dyn Error>>{
     
     let datasource = super::DS::new(TestHttpClient::new(&webpage));
 
-    let configuration = "test".as_bytes().to_vec();
+    let configuration = r#"{"ds_name": "datasource.bachtrack_listing", "value": "/url-something"}"#.as_bytes().to_vec();
     let items = tokio_test::block_on(datasource.extract(&configuration))?;
 
     assert_eq!(items.len(), 25);
@@ -56,7 +56,7 @@ fn test_extracor2() -> Result<(), Box<dyn Error>>{
     
     let datasource = super::DS::new(TestHttpClient::new(&webpage));
 
-    let configuration = "test".as_bytes().to_vec();
+    let configuration = r#"{"ds_name": "datasource.bachtrack_listing", "value": "/url-something"}"#.as_bytes().to_vec();
     let items = tokio_test::block_on(datasource.extract(&configuration))?;
 
     assert_eq!(items.len(), 1);

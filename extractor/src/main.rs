@@ -17,6 +17,9 @@ async fn main() {
         setup_datasource(datasources::bachtrack::discovery::DS::new(
             WebpageHttpClient::new()
         )),
+        setup_datasource(datasources::bachtrack::listing::DS::new(
+            WebpageHttpClient::new()
+        )),
     );
 
     // TODO:: switch to spawn task to use multi-thread (Tokio join does not use multi-threading)
@@ -42,9 +45,9 @@ async fn setup_datasource<T: Datasource + Copy>(datasource: T){
     let arc_nc = Arc::new(nc);
     
     subscriber.for_each_concurrent(MAX_CONCURRENT_MESSAGES, move |message|{
+        println!("{}: Starting extraction", datasource_name);
         let publisher = Arc::clone(&arc_nc);
         async move{
-
             let datasource_name = datasource.get_name();
 
             let extracted_items = match datasource.extract(&message.data).await{
@@ -73,6 +76,8 @@ async fn setup_datasource<T: Datasource + Copy>(datasource: T){
                     }
                 };
             }
+            println!("{}: Finished extraction", datasource_name);
         }
     }).await;
+
 }

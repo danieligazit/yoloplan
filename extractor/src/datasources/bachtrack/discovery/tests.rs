@@ -1,9 +1,10 @@
 use {
-    crate::model::{Datasource, Extracted},
+    crate::model::{Datasource, Extracted, Configuration},
     std::path::Path,
     std::error::Error,
     std::fs,
     tokio_test,
+    super::super::listing::DS_NAME,
     crate::model::http_client::TestHttpClient,
 };
 
@@ -25,9 +26,9 @@ fn test_extracor() -> Result<(), Box<dyn Error>>{
     let items = tokio_test::block_on(datasource.extract(&configuration))?;
 
     assert_eq!(items.len(), 50);
-    assert_eq!(items[0], Extracted::Configuration{
-        ds_name: "datasource.bachtrack".to_owned(),
-        value: "https://bachtrack.com/concert-event/residenz-serenade-munich-residenz-solisten-die-residenz-hofkapelle-5-september-2019/318719".as_bytes().to_vec(),
-    });
+    assert_eq!(items[0], Extracted::Configuration(Configuration{
+        ds_name: DS_NAME.to_owned(),
+        value: "https://bachtrack.com/concert-event/residenz-serenade-munich-residenz-solisten-die-residenz-hofkapelle-5-september-2019/318719".to_owned(),
+    }));
     Ok(())
 }
