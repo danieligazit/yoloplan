@@ -1,1 +1,1 @@
-pub mod bachtrack_discovery;
+pub mod bachtrack;

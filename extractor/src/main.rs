@@ -3,7 +3,7 @@ mod model;
 use {
     nats::asynk as nats,
     std::sync::Arc,
-    crate::model::datasource::{Datasource, ToQueue},
+    crate::model::Datasource,
     crate::model::http_client::WebpageHttpClient,
 };
 
@@ -12,9 +12,12 @@ const MAX_CONCURRENT_MESSAGES: usize = 100;
 extern crate tokio;
 
 #[tokio::main]
-async fn main() {  
+async fn main() {
     tokio::join!(
-        setup_datasource(datasources::bachtrack_discovery::DSBachTrackDiscovery::new(
+        setup_datasource(datasources::bachtrack::discovery::DS::new(
+            WebpageHttpClient::new()
+        )),
+        setup_datasource(datasources::bachtrack::listing::DS::new(
             WebpageHttpClient::new()
         )),
     );
@@ -42,9 +45,9 @@ async fn setup_datasource<T: Datasource + Copy>(datasource: T){
     let arc_nc = Arc::new(nc);
     
     subscriber.for_each_concurrent(MAX_CONCURRENT_MESSAGES, move |message|{
+        println!("{}: Starting extraction", datasource_name);
         let publisher = Arc::clone(&arc_nc);
         async move{
-
             let datasource_name = datasource.get_name();
 
             let extracted_items = match datasource.extract(&message.data).await{
@@ -73,6 +76,8 @@ async fn setup_datasource<T: Datasource + Copy>(datasource: T){
                     }
                 };
             }
+            println!("{}: Finished extraction", datasource_name);
         }
     }).await;
+
 }
