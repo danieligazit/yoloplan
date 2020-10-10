@@ -1,51 +1,48 @@
+extern crate tokio;
+extern crate serde;
+extern crate macros;
+
+
 use {
-    nats::asynk as nats,
-    std::sync::Arc,
+    // nats::asynk as nats,
+    // std::sync::Arc,    
+    // std::error::Error,
+    // serde_json::{Result, Value},
+    serde::{Serialize, Deserialize}
 };
 
-const MAX_CONCURRENT_MESSAGES: usize = 100;
 
-extern crate tokio;
+macros::schemafy!{
+    "schema.json"
+}
+// const MAX_CONCURRENT_MESSAGES: usize = 100;
 
 #[tokio::main]
-async fn main() {  
-    tokio::join!(
-        setup_identifier("identifier.event.music", bachtrack::MusicEventIdentifier{}),
-    );
-
-    // TODO:: switch to spawn task to use multi-thread (Tokio join does not allow multi-threading)
-    // datasources
-    //     .into_iter()
-    //     .map(move |(queue, extractor)| {
-    //         tokio::spawn(async move { 
-    //             use crate::model::extractor::Extractor;
-    //             setup_extractor(queue, extractor);
-    //         }); 
-    //     });
+async fn main(){
+    let v: Event = serde_json::from_str(r#"{ 
+        "title": "Amon Tobin - ISAM", 
+        "time": "2021/10/10T20:00:00",
+        "description": "Amon Tobin’s audiovisual spectacle ISAM took over the Concert Hall at Vivid LIVE 2012 in an audiovisual spectacle like no other.", 
+        "price": 67
+    }"#).unwrap();
+    println!("{:?}", v.get_identifier_values());
+    // v.print_HI();
 }
 
-async fn setup_identifier<T: Identifier + Copy>(identifier_name: &str, extractor: T){
-    use futures::stream::StreamExt;
 
-    let nc = nats::connect("127.0.0.1:4222").await.unwrap();
+// async fn setup_normalizer(){
+//     use futures::stream::StreamExt;
 
-    println!("listening to queue {}", identifier_name);
-
-    let subscriber = nc.subscribe(datasource_name).await.unwrap();
-    let arc_nc = Arc::new(nc);
+//     let nc = nats::connect("127.0.0.1:4222").await.unwrap();
     
-    subscriber.for_each_concurrent(MAX_CONCURRENT_MESSAGES, move |message|{
-        let publisher = Arc::clone(&arc_nc);
+//     let subscriber = nc.subscribe("queue").await.unwrap();
+//     let arc_nc = Arc::new(nc);
+    
+//     subscriber.for_each_concurrent(MAX_CONCURRENT_MESSAGES, move |message|{
+//         let publisher = Arc::clone(&arc_nc);
         
-        async move{
-            let extracted_items = match identifier.identify(&message.data).await{
-                Ok(k) => k,
-                Err(e) => {
-                    println!("{} Error occured in the identifier logic. err: {}", datasource_name, e);
-                    return;
-                }
-            };
+//         async move{
             
-        }
-    }).await;
-}
+//         }
+//     }).await;
+// }

@@ -1,3 +1,7 @@
 pub mod errors;
-pub mod extractor;
-pub use extractor::*;
+pub mod datasource;
+pub mod http_client;
+pub mod extract;
+
+pub use extract::*;
+pub use datasource::*;
