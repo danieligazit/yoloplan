@@ -1,16 +1,18 @@
 extern crate tokio;
 extern crate serde;
 extern crate macros;
+extern crate dotenv;
 
+mod dal;
 
 use {
     // nats::asynk as nats,
     // std::sync::Arc,    
     // std::error::Error,
     // serde_json::{Result, Value},
-    serde::{Serialize, Deserialize}
+    serde::{Serialize, Deserialize},
+    dal::*,
 };
-
 
 macros::schemafy!{
     "schema.json"
@@ -18,15 +20,19 @@ macros::schemafy!{
 // const MAX_CONCURRENT_MESSAGES: usize = 100;
 
 #[tokio::main]
-async fn main(){
-    let v: Event = serde_json::from_str(r#"{ 
-        "title": "Amon Tobin - ISAM", 
-        "time": "2021/10/10T20:00:00",
-        "description": "Amon Tobin’s audiovisual spectacle ISAM took over the Concert Hall at Vivid LIVE 2012 in an audiovisual spectacle like no other.", 
-        "price": 67
-    }"#).unwrap();
-    println!("{:?}", v.get_identifier_values());
-    // v.print_HI();
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
+    dotenv::dotenv().ok();
+
+    // let v: Event = serde_json::from_str(r#"{ 
+    //     "title": "Amon Tobin - ISAM", 
+    //     "time": "2021/10/10T20:00:00",
+    //     "description": "Amon Tobin’s audiovisual spectacle ISAM took over the Concert Hall at Vivid LIVE 2012 in an audiovisual spectacle like no other.", 
+    //     "price": 67
+    // }"#)?;
+
+    let neo4j_dal = neo4j::DAL::new().await?;
+
+    Ok(())
 }
 
 
@@ -46,3 +52,6 @@ async fn main(){
 //         }
 //     }).await;
 // }
+
+
+
