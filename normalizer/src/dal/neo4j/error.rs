@@ -13,27 +13,6 @@ pub struct Error {
 /// Alias for a `Result` with the error type `serde_json::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-impl Error {
-    /// One-based line number at which the error was detected.
-    ///
-    /// Characters in the first line of the input (before the first newline
-    /// character) are in line 1.
-    pub fn line(&self) -> usize {
-        self.err.line
-    }
-
-    /// One-based column number at which the error was detected.
-    ///
-    /// The first character in the input and any characters immediately
-    /// following a newline character are in column 1.
-    ///
-    /// Note that errors may occur in column 0, for example if a read from an IO
-    /// stream fails immediately following a previously read newline character.
-    pub fn column(&self) -> usize {
-        self.err.column
-    }
-}
-
 /// Categorizes the cause of a `Error`.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Category {
@@ -75,8 +54,6 @@ impl From<Error> for io::Error {
 
 struct ErrorImpl {
     code: ErrorCode,
-    line: usize,
-    column: usize,
 }
 
 pub(crate) enum ErrorCode {
@@ -143,30 +120,10 @@ pub(crate) enum ErrorCode {
     /// Encountered nesting of JSON maps and arrays more than 128 layers deep.
     RecursionLimitExceeded,
 
-    /// Neo4j does not support sequences
+    /// Neo4j does not support a sequence-like data type
     UnsupportedSequenceValue,
 }
 
-impl Error {
-    #[cold]
-    pub(crate) fn syntax(code: ErrorCode, line: usize, column: usize) -> Self {
-        Error {
-            err: Box::new(ErrorImpl { code, line, column }),
-        }
-    }
-
-    #[cold]
-    pub(crate) fn fix_position<F>(self, f: F) -> Self
-    where
-        F: FnOnce(ErrorCode) -> Error,
-    {
-        if self.err.line == 0 {
-            f(self.err.code)
-        } else {
-            self
-        }
-    }
-}
 
 impl Display for ErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -196,7 +153,7 @@ impl Display for ErrorCode {
             ErrorCode::TrailingCharacters => f.write_str("trailing characters"),
             ErrorCode::UnexpectedEndOfHexEscape => f.write_str("unexpected end of hex escape"),
             ErrorCode::RecursionLimitExceeded => f.write_str("recursion limit exceeded"),
-            ErrorCode::UnsupportedSequenceValue => f.write_str("Neo4j does not support sequences"),
+            ErrorCode::UnsupportedSequenceValue => f.write_str("Neo4j does not support a sequence-like data type"),
         }
     }
 }
@@ -216,15 +173,12 @@ impl Display for Error {
 
 impl Display for ErrorImpl {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.line == 0 {
-            Display::fmt(&self.code, f)
-        } else {
-            write!(
-                f,
-                "{} at line {} column {}",
-                self.code, self.line, self.column
-            )
-        }
+        write!(
+            f,
+            "{}",
+            self.code
+        )
+        
     }
 }
 
@@ -234,68 +188,19 @@ impl Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Error({:?}, line: {}, column: {})",
+            "Error({:?})",
             self.err.code.to_string(),
-            self.err.line,
-            self.err.column
         )
     }
 }
 
 
-// Parse our own error message that looks like "{} at line {} column {}" to work
-// around erased-serde round-tripping the error through de::Error::custom.
 fn make_error(mut msg: String) -> Error {
-    let (line, column) = parse_line_col(&mut msg).unwrap_or((0, 0));
     Error {
         err: Box::new(ErrorImpl {
-            code: ErrorCode::Message(msg.into_boxed_str()),
-            line,
-            column,
+            code: ErrorCode::Message(msg.into_boxed_str())
         }),
     }
-}
-
-fn parse_line_col(msg: &mut String) -> Option<(usize, usize)> {
-    let start_of_suffix = match msg.rfind(" at line ") {
-        Some(index) => index,
-        None => return None,
-    };
-
-    // Find start and end of line number.
-    let start_of_line = start_of_suffix + " at line ".len();
-    let mut end_of_line = start_of_line;
-    while starts_with_digit(&msg[end_of_line..]) {
-        end_of_line += 1;
-    }
-
-    if !msg[end_of_line..].starts_with(" column ") {
-        return None;
-    }
-
-    // Find start and end of column number.
-    let start_of_column = end_of_line + " column ".len();
-    let mut end_of_column = start_of_column;
-    while starts_with_digit(&msg[end_of_column..]) {
-        end_of_column += 1;
-    }
-
-    if end_of_column < msg.len() {
-        return None;
-    }
-
-    // Parse numbers.
-    let line = match usize::from_str_radix(&msg[start_of_line..end_of_line], 10) {
-        Ok(line) => line,
-        Err(_) => return None,
-    };
-    let column = match usize::from_str_radix(&msg[start_of_column..end_of_column], 10) {
-        Ok(column) => column,
-        Err(_) => return None,
-    };
-
-    msg.truncate(start_of_suffix);
-    Some((line, column))
 }
 
 fn starts_with_digit(slice: &str) -> bool {

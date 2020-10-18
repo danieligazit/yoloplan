@@ -1,8 +1,8 @@
 {
    "definitions": {
       
-      "event":{
-         "title": "Event",
+      "Event":{
+         "title": "Asdlfk",
          "type": "object",
          
          "properties": {
@@ -22,12 +22,26 @@
             },
             
             "price": {
-               "type": "number",
+               "type": "f64",
                "minimum": 0
             }
 
          },
-         "required": ["title", "time", "description", "price"]
+         "required": ["title", "p", "description", "price"]
+      }, 
+      "Else": {
+         "title": "Ellse",
+         "type": "object",
+         
+         "properties": {
+         
+            "elite": {
+               "type": "string",
+               "identify": "match_exact"
+            }
+            
+
+         }
       }
 
    }

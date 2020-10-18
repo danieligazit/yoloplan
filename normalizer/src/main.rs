@@ -1,9 +1,10 @@
 extern crate tokio;
 extern crate serde;
-extern crate macros;
+extern crate schema;
 extern crate dotenv;
 
 mod dal;
+pub mod model;
 
 use {
     // nats::asynk as nats,
@@ -14,7 +15,7 @@ use {
     dal::*,
 };
 
-macros::schemafy!{
+schema::schemafy!{
     "schema.json"
 }
 // const MAX_CONCURRENT_MESSAGES: usize = 100;
@@ -22,16 +23,28 @@ macros::schemafy!{
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     dotenv::dotenv().ok();
+    let v: Event = serde_json::from_str(r#"{ 
+        "title": "Amon Tobin - ISAM", 
+        "time": "2021/10/10T20:00:00",
+        "description": "Amon Tobin’s audiovisual spectacle ISAM took over the Concert Hall at Vivid LIVE 2012 in an audiovisual spectacle like no other.", 
+        "price": 67
+    }"#)?;
 
-    // let v: Event = serde_json::from_str(r#"{ 
-    //     "title": "Amon Tobin - ISAM", 
-    //     "time": "2021/10/10T20:00:00",
-    //     "description": "Amon Tobin’s audiovisual spectacle ISAM took over the Concert Hall at Vivid LIVE 2012 in an audiovisual spectacle like no other.", 
-    //     "price": 67
-    // }"#)?;
+    println!("{:#?}", v);
+    // println!("{:#?}", Event::get_fields());
+    // println!("{:#?}", Event::get_type());
+    // println!("{:#?}", v.get_values()?);
+    // println!("{:#?}", v.get_identifier_values()?);
 
-    let neo4j_dal = neo4j::DAL::new().await?;
-
+    // println!("{:#?}", Event::get_fields()?);
+    // let v : KA = serde_json::from_str(r#"{ 
+    //     "time": "yesterday"}"#);
+    
+    let mut neo4j_dal = neo4j::DAL::new().await?;
+    
+    // neo4j_dal.identify(&Event::get_type(), v.get_identifier_values()?).await?;
+    
+    
     Ok(())
 }
 

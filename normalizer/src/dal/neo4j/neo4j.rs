@@ -5,17 +5,18 @@ use {
         collections::HashMap,
         convert::TryFrom,
         env,
+        fmt,
         iter::FromIterator,
         error::Error,
     },
-    serde::de::DeserializeOwned,
-    serde_json::value,
+    serde::Serialize,
+    serde_json,
 
     tokio::io::BufStream,
     tokio_util::compat::*,
 
     bolt_client::*,
-    bolt_proto::{message::*, value::*, version::*, Message, Value},
+    bolt_proto::{message::{Record}, value as bolt_value, version::*, Message, Value, error},
 };
 
 type BoltClient = Client<Compat<BufStream<Stream>>>;
@@ -23,6 +24,86 @@ type BoltClient = Client<Compat<BufStream<Stream>>>;
 pub struct DAL{
     client: BoltClient,
 }
+
+#[derive(Debug)]
+pub struct DALCommunciationError;
+
+impl fmt::Display for DALCommunciationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Failed to communicate to DAL resource")
+    }
+}
+
+impl Error for DALCommunciationError {
+    fn description(&self) -> &str {
+        "Failed to communicate to DAL resource"
+    }
+}
+
+fn serde2bolt_value(s_value: serde_json::Value) -> Value {
+    match s_value {
+        serde_json::Value::String(s) => Value::from(s),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64(){
+                return Value::from(i);
+            } else if let Some(f) = n.as_f64(){
+                return Value::from(f);
+            }
+            Value::Null
+        },
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Bool(b) => Value::from(b),
+        serde_json::Value::Array(a) => {
+            let mut transformed = Vec::new();
+            for item in a {
+                transformed.push(serde2bolt_value(item));
+            }
+            Value::from(transformed)
+        },
+        serde_json::Value::Object(a) => {
+            let mut transformed: HashMap<Value, Value> = HashMap::new();
+            for (key, value) in a {
+                transformed.insert(Value::from(key), serde2bolt_value(value));
+            }
+            Value::Null
+        },
+        _ => Value::Null,
+        
+    }
+}
+
+// fn bolt_value2serde(b_value: bolt_value) -> Value {
+//     match s_value {
+//         bolt_value::Value::String(s) => Value::from(s),
+//         serde_json::Value::Number(n) => {
+//             if let Some(i) = n.as_i64(){
+//                 return Value::from(i);
+//             } else if let Some(f) = n.as_f64(){
+//                 return Value::from(f);
+//             }
+//             Value::Null
+//         },
+//         serde_json::Value::Null => Value::Null,
+//         serde_json::Value::Bool(b) => Value::from(b),
+//         serde_json::Value::Array(a) => {
+//             let mut transformed = Vec::new();
+//             for item in a {
+//                 transformed.push(serde2bolt_value(item));
+//             }
+//             Value::from(transformed)
+//         },
+//         serde_json::Value::Object(a) => {
+//             let mut transformed: HashMap<Value, Value> = HashMap::new();
+//             for (key, value) in a {
+//                 transformed.insert(Value::from(key), serde2bolt_value(value));
+//             }
+//             Value::Null
+//         },
+//         _ => Value::Null,
+        
+//     }
+// }
+
 
 impl DAL{
     pub async fn new() -> Result<DAL, Box<dyn std::error::Error>>{
@@ -45,17 +126,56 @@ impl DAL{
         Ok(DAL{client})
     }
 
-    async fn run_query(&self, query: &str) -> Result<Message, Box<dyn Error>>{
-        self.client.run_with_metadata("RETURN 1 as num;", None, None).await?
+    async fn run_query(&mut self, query: &str, params: Option<Params>) -> Result<Vec<Record>, Box<dyn Error>>{
+        self.client.run_with_metadata(query, params, None).await?;
+        
+        let pull_meta = Metadata::from_iter(vec![("n", 1)]);
+        let (response, records) = self.client.pull(Some(pull_meta.clone())).await?;
+
+        let metadata = match response {
+            Message::Success(success) => success,
+            _ => {
+                println!("meta {:#?}", response);
+                return Err(Box::new(DALCommunciationError));
+            }
+        };
+        
+        Ok(records)
     }
 
-    async fn parse_response<T: DeserializeOwned>(&self, response: Message) -> Result<T, Box<dyn Error>>{
-        let result: Value = serde_json::de::from_str(&serde_json::to_string(&response)?)?;
+    pub async fn load(&mut self, object_type: &str, values: HashMap<&str, serde_json::Value>) -> Result<(), Box<dyn Error>>{
+        let mut params_vec = Vec::new();
+        let mut query_values = Vec::new();
 
-        value::from_value::<T>(result).map_err(|e| {
-            println!("Unable to parse response: {}", &e);
-            From::from(e)
-        })
+        for (field_name, field_value) in values {
+            params_vec.push((field_name, serde2bolt_value(field_value)));
+            query_values.push(format!("{}: ${}", field_name, field_name));
+        }
+
+        let params = Params::from_iter(params_vec); 
+        let query = format!("CREATE (:{} {{{}}});", object_type, query_values.join(","));
+        let records = self.run_query(&query, Some(params)).await;
+
+        println!("records {:#?}", records);
+
+        Ok(())
+    }
+
+    pub async fn identify(&mut self, object_type: &str, identifier_values: Vec<(&str, serde_json::Value, &str)>) -> Result<(), Box<dyn Error>>{
+        let mut params_vec = Vec::new();
+        let mut query_values = Vec::new();
+
+        for (field, value, matching_method) in identifier_values {
+            query_values.push(format!("{}: ${}", field, field));
+            params_vec.push((field, serde2bolt_value(value)));
+        }
+
+        let params = Params::from_iter(params_vec); 
+        let query = format!("MATCH (a:{} {{{}}}) RETURN a;", object_type, query_values.join(","));
+        
+        let records = self.run_query(&query, Some(params)).await;
+
+        Ok(())
     }
 
     
