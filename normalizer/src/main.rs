@@ -2,18 +2,20 @@ extern crate tokio;
 extern crate serde;
 extern crate schema;
 extern crate dotenv;
+extern crate rincon_core;
+extern crate rincon_connector;
+extern crate rincon_session;
+extern crate tokio_core;
 
 mod dal;
 pub mod model;
 
 use {
-    // nats::asynk as nats,
-    // std::sync::Arc,    
-    // std::error::Error,
-    // serde_json::{Result, Value},
     serde::{Serialize, Deserialize},
     dal::*,
 };
+
+
 
 schema::schemafy!{
     "schema.json"
@@ -30,41 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         "price": 67
     }"#)?;
 
-    println!("{:#?}", v);
-    // println!("{:#?}", Event::get_fields());
-    // println!("{:#?}", Event::get_type());
-    // println!("{:#?}", v.get_values()?);
-    // println!("{:#?}", v.get_identifier_values()?);
-
-    // println!("{:#?}", Event::get_fields()?);
-    // let v : KA = serde_json::from_str(r#"{ 
-    //     "time": "yesterday"}"#);
-    
-    let mut neo4j_dal = neo4j::DAL::new().await?;
-    
-    // neo4j_dal.identify(&Event::get_type(), v.get_identifier_values()?).await?;
-    
-    
+    let db = arangodb::DAL::new().await?;
+    db.upload(v).await?;
     Ok(())
 }
-
-
-// async fn setup_normalizer(){
-//     use futures::stream::StreamExt;
-
-//     let nc = nats::connect("127.0.0.1:4222").await.unwrap();
-    
-//     let subscriber = nc.subscribe("queue").await.unwrap();
-//     let arc_nc = Arc::new(nc);
-    
-//     subscriber.for_each_concurrent(MAX_CONCURRENT_MESSAGES, move |message|{
-//         let publisher = Arc::clone(&arc_nc);
-        
-//         async move{
-            
-//         }
-//     }).await;
-// }
-
-
 
