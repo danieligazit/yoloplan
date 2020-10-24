@@ -2,10 +2,6 @@ extern crate tokio;
 extern crate serde;
 extern crate schema;
 extern crate dotenv;
-extern crate rincon_core;
-extern crate rincon_connector;
-extern crate rincon_session;
-extern crate tokio_core;
 
 mod dal;
 pub mod model;
