@@ -27,22 +27,7 @@
             }
 
          },
-         "required": ["title", "p", "description", "price"]
-      }, 
-      "Else": {
-         "title": "Ellse",
-         "type": "object",
-         
-         "properties": {
-         
-            "elite": {
-               "type": "string",
-               "identify": "match_exact"
-            }
-            
-
-         }
+         "required": ["title", "time", "description", "price"]
       }
-
    }
  }

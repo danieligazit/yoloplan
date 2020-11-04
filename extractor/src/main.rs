@@ -1,7 +1,9 @@
 mod datasources;
 mod model;
+extern crate nats;
+
 use {
-    nats::asynk as nats,
+    crate::nats::asynk as nats_client,
     std::sync::Arc,
     crate::model::Datasource,
     crate::model::http_client::WebpageHttpClient,
@@ -37,7 +39,7 @@ async fn setup_datasource<T: Datasource + Copy>(datasource: T){
     use futures::stream::StreamExt;
 
     let datasource_name = datasource.get_name();
-    let nc = nats::connect("127.0.0.1:4222").await.unwrap();
+    let nc = nats_client::connect("127.0.0.1:4222").await.unwrap();
 
     println!("listening to queue {}", datasource_name);
 

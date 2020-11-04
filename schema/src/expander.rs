@@ -4,15 +4,17 @@
 /// This module is itself generated from a JSON schema.
 // use schema;
 
+
 use {
     std::borrow::Cow,
     inflector::Inflector,
     serde_json::Value,
-    schema::{Schema, SimpleTypes},
+    schema::Schema,
     proc_macro2::{Span, TokenStream},
     utility::*,
+    common,
+    common::SimpleTypes,
 };
-
 
 
 const LINE_LENGTH: usize = 100;
@@ -38,6 +40,7 @@ impl<'a, 'r> FieldExpander<'a, 'r> {
                     .iter()
                     .flat_map(|a| a.iter())
                     .any(|req| req == field_name);
+
                 let field_type = self.expander.expand_type(type_name, required, value);
                 if !field_type.typ.starts_with("Option<") {
                     self.default = false;
@@ -60,12 +63,7 @@ impl<'a, 'r> FieldExpander<'a, 'r> {
                         #[serde( #(#attributes),* )]
                     })
                 };
-                let comment = value
-                    .description
-                    .as_ref()
-                    .map(|comment| make_doc_comment(comment, LINE_LENGTH - INDENT_LENGTH));
                 quote! {
-                    #comment
                     #default
                     #attributes
                     #key : #typ
@@ -73,14 +71,6 @@ impl<'a, 'r> FieldExpander<'a, 'r> {
             })
             .collect()
     }
-}
-
-
-pub struct Expander<'r> {
-    current_type: String,
-    current_field: String,
-    types: Vec<(String, TokenStream)>,
-    root: &'r Schema,
 }
 
 struct FieldType {
@@ -101,6 +91,14 @@ where
         }
     }
 }
+
+pub struct Expander<'r> {
+    current_type: String,
+    current_field: String,
+    types: Vec<(String, TokenStream)>,
+    root: &'r Schema,
+}
+
 
 impl<'r> Expander<'r> {
     pub fn new(root: &'r Schema) -> Expander<'r> {
@@ -170,7 +168,7 @@ impl<'r> Expander<'r> {
             let simple = self.schema(&any_of[0]);
             let array = self.schema(&any_of[1]);
             if !array.type_.is_empty() {
-                if let SimpleTypes::Array = array.type_[0] {
+                if let SimpleTypes::Vec = array.type_[0] {
                     if simple == self.schema(&array.items[0]) {
                         return FieldType {
                             typ: format!("Vec<{}>", self.expand_type_(&any_of[0]).typ),
@@ -182,7 +180,7 @@ impl<'r> Expander<'r> {
                     }
                 }
             }
-            return "serde_json::Value".into();
+            return "common::Value".into();
         } else if typ.type_.len() == 2 {
             if typ.type_[0] == SimpleTypes::Null || typ.type_[1] == SimpleTypes::Null {
                 let mut ty = typ.clone();
@@ -194,25 +192,34 @@ impl<'r> Expander<'r> {
                     default: true,
                 }
             } else {
-                "serde_json::Value".into()
+                "common::Value".into()
             }
         } else if typ.type_.len() == 1 {
+
             match typ.type_[0] {
-                SimpleTypes::String => {
-                    if typ.enum_.as_ref().map_or(false, |e| e.is_empty()) {
-                        "serde_json::Value".into()
-                    } else {
-                        "String".into()
-                    }
-                }
-                SimpleTypes::Integer => "i64".into(),
+                SimpleTypes::String =>"String".into(),
                 SimpleTypes::Boolean => "bool".into(),
-                SimpleTypes::Number => "f64".into(),
-                // Handle objects defined inline
+                SimpleTypes::Char => "char".into(),
+                
+                SimpleTypes::I64 => "i64".into(),
+                SimpleTypes::I32 =>"i32".into(),
+                SimpleTypes::I16 => "i16".into(),
+                SimpleTypes::I8 => "i8".into(),
+
+                SimpleTypes::F64 => "f64".into(),
+                SimpleTypes::F32 =>"f32".into(),
+
+                SimpleTypes::U64 => "u64".into(),
+                SimpleTypes::U32 =>"u32".into(),
+                SimpleTypes::U16 => "u16".into(),
+                SimpleTypes::U8 => "u8".into(),
+                
+                SimpleTypes::USize => "usize".into(),
+                SimpleTypes::ISize => "isize".into(),
+                
+                SimpleTypes::IP4 => "String".into(),
                 SimpleTypes::Object
-                    if !typ.properties.is_empty()
-                        || typ.additional_properties == Some(Value::Bool(false)) =>
-                {
+                    if !typ.properties.is_empty() => {
                     let name = format!(
                         "{}{}",
                         self.current_type.to_pascal_case(),
@@ -222,62 +229,81 @@ impl<'r> Expander<'r> {
                     self.types.push((name.clone(), tokens));
                     name.into()
                 }
+
                 SimpleTypes::Object => {
-                    let prop = match typ.additional_properties {
-                        Some(ref props) if props.is_object() => {
-                            let prop = serde_json::from_value(props.clone()).unwrap();
-                            self.expand_type_(&prop).typ
-                        }
-                        _ => "serde_json::Value".into(),
-                    };
-                    let result = format!("::std::collections::BTreeMap<String, {}>", prop);
+                    let result = "::std::collections::HashMap<String, common::Value>";
                     FieldType {
-                        typ: result,
+                        typ: result.to_owned(),
                         attributes: Vec::new(),
-                        default: typ.default == Some(Value::Object(Default::default())),
+                        default: typ.default == Some(common::Value::Object(Default::default())),
                     }
                 }
-                SimpleTypes::Array => {
-                    let item_type = typ.items.get(0).map_or("serde_json::Value".into(), |item| {
+
+                SimpleTypes::Vec => {
+                    let item_type = typ.items.get(0).map_or("common::Value".into(), |item| {
                         self.current_type = format!("{}Item", self.current_type);
                         self.expand_type_(item).typ
                     });
                     format!("Vec<{}>", item_type).into()
                 }
-                _ => "serde_json::Value".into(),
+                _ => "common::Value".into(),
             }
         } else {
             "serde_json::Value".into()
         }
     }
 
-    fn expand_definitions(&mut self, schema: &Schema) {
-        for (name, def) in &schema.definitions {
-            
-            let type_decl = self.expand_schema(name, def);
-            let definition_tokens = match def.description {
-                Some(ref comment) => {
-                    let t = make_doc_comment(comment, LINE_LENGTH);
-                    quote! {
-                        #t
-                        #type_decl
-                    }
-                }
-                None => type_decl,
+    fn get_fields_logic(&mut self) -> TokenStream {
+        let mut logic = quote!{
+            let mut fields = Vec::new();
+        };
+
+        for (field_name, field_schema) in &self.root.definitions[&self.current_type].properties{
+            let field_type = self.expand_type_(field_schema).typ;
+  
+            logic = quote!{
+                #logic
+                fields.push((#field_name.to_owned(), #field_type.to_owned()));
             };
-            self.types.push((name.to_string(), definition_tokens));
+        }
+
+        quote! {
+            #logic
+            Ok(fields)
         }
     }
 
-    fn get_identifier_values_logic(&self) -> TokenStream{
+    fn get_values_logic(&mut self) -> TokenStream {
+        let self_ident = syn::Ident::new("self", Span::call_site());
 
+        let mut logic = quote!{
+            let mut values = std::collections::HashMap::new();
+        };
+
+        for (field_name, field_schema) in &self.root.definitions[&self.current_type].properties{
+            
+            let field = syn::Ident::new(field_name, Span::call_site());
+            logic = quote!{
+                #logic
+                values.insert(#field_name, common::Value::from(#self_ident.#field.clone()));
+            };
+        }
+
+        quote! {
+            #logic
+            Ok(values)
+        }
+    }
+
+
+    fn get_identifier_values_logic(&self) -> TokenStream{
         let self_ident = syn::Ident::new("self", Span::call_site());
 
         let mut logic = quote!{
             let mut identifier_values = Vec::new();
         };
 
-        for (field_name, field_schema) in &self.root.definitions["event"].properties{
+        for (field_name, field_schema) in &self.root.definitions[&self.current_type].properties{
             let identification_method = match &field_schema.identify {
                 None => continue,
                 Some(idetification_method) => idetification_method,
@@ -287,8 +313,9 @@ impl<'r> Expander<'r> {
             
             logic = quote!{
                 #logic
-                identifier_values.push((#field_name.to_owned(), serde_json::to_value(#self_ident.#field)?, #identification_method.to_owned()));
+                identifier_values.push((#field_name, common::Value::from(#self_ident.#field.clone()), #identification_method));
             };
+            
         }
 
         quote! {
@@ -301,7 +328,9 @@ impl<'r> Expander<'r> {
         self.expand_definitions(schema);
 
         let pascal_case_name = replace_invalid_identifier_chars(&original_name.to_pascal_case());
+        
         self.current_type.clone_from(&pascal_case_name);
+        
         let (fields, default) = {
             let mut field_expander = FieldExpander {
                 default: true,
@@ -312,144 +341,55 @@ impl<'r> Expander<'r> {
         };
         let name = syn::Ident::new(&pascal_case_name, Span::call_site());
         
-        let is_struct =
-            !fields.is_empty() || schema.additional_properties == Some(Value::Bool(false));
-
+        let is_struct = !fields.is_empty();
 
         let type_decl = if is_struct {
             
+            // fn get_struct_decleration(&self, name: &str, default: bool, fields: Vec<TokenStream>)
             let struct_definition = if default {
                 quote! {
                     #[derive(Clone, PartialEq, Debug, Default, Deserialize, Serialize)]
                     pub struct #name {
                         #(#fields),*
+                        
+                        #[serde(default)]
+                        _metadata: Metadata
                     }
                 }
             } else {
                 quote! {
                     #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
                     pub struct #name {
-                        #(#fields),*
+                        #(#fields),*,
+
+                        #[serde(default)]
+                        _metadata: common::Metadata
                     }
                 }
             };
 
+            let fields_logic = self.get_fields_logic();
             let identifier_values_logic = self.get_identifier_values_logic();
+            let values_logic = self.get_values_logic();
 
             quote! {
                 #struct_definition
                 
                 impl #name {
-                    fn get_identifier_values(self) -> Result<Vec<(String, serde_json::Value, String)>, Box<dyn std::error::Error>>{
+                    fn get_fields() -> anyhow::Result<Vec<(String, String)>>{
+                        #fields_logic
+                    }
+                    
+                    fn get_values(&self) -> anyhow::Result<(std::collections::HashMap<&str, common::Value>)>{
+                        #values_logic
+                    }
+
+                    fn get_identifier_values(&self) -> anyhow::Result<Vec<(&str, common::Value, &str)>>{
                         #identifier_values_logic
                     }
-                }
-            }
-        } else if schema.enum_.as_ref().map_or(false, |e| !e.is_empty()) {
-            let mut optional = false;
-            let mut repr_i64 = false;
-            let variants = if schema.enum_names.as_ref().map_or(false, |e| !e.is_empty()) {
-                let values = schema.enum_.as_ref().map_or(&[][..], |v| v);
-                let names = schema.enum_names.as_ref().map_or(&[][..], |v| v);
-                if names.len() != values.len() {
-                    panic!("enumNames(length {}) and enum(length {}) have different length", names.len(), values.len())
-                }
-                names.iter()
-                    .enumerate()
-                    .map(|(idx, name)| (&values[idx], name))
-                    .flat_map(|(value, name)| {
-                        let pascal_case_variant = name.to_pascal_case();
-                        let variant_name =
-                            rename_keyword("", &pascal_case_variant).unwrap_or_else(|| {
-                                let v = syn::Ident::new(&pascal_case_variant, Span::call_site());
-                                quote!(#v)
-                            });
-                        match value {
-                            Value::String(ref s) => Some(quote! {
-                                #[serde(rename = #s)]
-                                #variant_name
-                            }),
-                            Value::Number(ref n) => {
-                                repr_i64 = true;
-                                let num = syn::LitInt::new(&n.to_string(), Span::call_site());
-                                Some(quote! {
-                                    #variant_name = #num
-                                })
-                            },
-                            Value::Null => {
-                                optional = true;
-                                None
-                            },
-                            _ => panic!("Expected string,bool or number for enum got `{}`", value),
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                schema
-                    .enum_
-                    .as_ref()
-                    .map_or(&[][..], |v| v)
-                    .iter()
-                    .flat_map(|v| match *v {
-                        Value::String(ref v) => {
-                            let pascal_case_variant = v.to_pascal_case();
-                            let variant_name =
-                                rename_keyword("", &pascal_case_variant).unwrap_or_else(|| {
-                                    let v = syn::Ident::new(&pascal_case_variant, Span::call_site());
-                                    quote!(#v)
-                                });
-                            Some(if pascal_case_variant == *v {
-                                variant_name
-                            } else {
-                                quote! {
-                                    #[serde(rename = #v)]
-                                    #variant_name
-                                }
-                            })
-                        }
-                        Value::Null => {
-                            optional = true;
-                            None
-                        }
-                        _ => panic!("Expected string for enum got `{}`", v),
-                    })
-                    .collect::<Vec<_>>()
-            };
-            if optional {
-                let enum_name = syn::Ident::new(&format!("{}_", name), Span::call_site());
-                if repr_i64 {
-                    quote! {
-                        pub type #name = Option<#enum_name>;
-                        #[derive(Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr)]
-                        #[repr(i64)]
-                        pub enum #enum_name {
-                            #(#variants),*
-                        }
-                    }
-                } else {
-                    quote! {
-                        pub type #name = Option<#enum_name>;
-                        #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
-                        pub enum #enum_name {
-                            #(#variants),*
-                        }
-                    }
-                }
-            } else {
-                if repr_i64 {
-                    quote! {
-                        #[derive(Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr)]
-                        #[repr(i64)]
-                        pub enum #name {
-                            #(#variants),*
-                        }
-                    }
-                } else {
-                    quote! {
-                        #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
-                        pub enum #name {
-                            #(#variants),*
-                        }
+
+                    fn get_name() -> String{
+                        return #pascal_case_name.to_owned()
                     }
                 }
             }
@@ -463,6 +403,7 @@ impl<'r> Expander<'r> {
                 pub type #name = #typ;
             };
         };
+
         if name == original_name {
             type_decl
         } else {
@@ -473,12 +414,27 @@ impl<'r> Expander<'r> {
         }
     }
 
+    ///
+    /// After the Expander types vector is filled by calling expand_definitons, the method
+    /// formats all the newly created structs to a single token stream
     pub fn expand(&mut self, schema: &Schema) -> TokenStream {
         self.expand_definitions(schema);
 
         let types = self.types.iter().map(|t| &t.1);
         quote! {
             #( #types )*
+        }
+    }
+
+    ///
+    /// Iterates over the definitions in a given schema and calls the definition
+    ///  creation process for each of them.
+    fn expand_definitions(&mut self, schema: &Schema) {
+        for (name, def) in &schema.definitions {
+            let type_decl = self.expand_schema(name, def);
+            println!("completed {}", &type_decl.to_string());
+            self.types.push((name.to_string(), type_decl));
+            
         }
     }
 

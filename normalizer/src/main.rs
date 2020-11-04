@@ -9,6 +9,8 @@ pub mod model;
 use {
     serde::{Serialize, Deserialize},
     dal::*,
+    anyhow::Result,
+    chrono::{DateTime}
 };
 
 
@@ -18,8 +20,10 @@ schema::schemafy!{
 }
 // const MAX_CONCURRENT_MESSAGES: usize = 100;
 
+
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>>{
+async fn main() -> Result<()>{
     dotenv::dotenv().ok();
     let v: Event = serde_json::from_str(r#"{ 
         "title": "Amon Tobin - ISAM", 
@@ -29,7 +33,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     }"#)?;
 
     let db = arangodb::DAL::new().await?;
-    db.upload(v).await?;
+    let result = db.identify(v).await?;
+    
+    println!("{:#?}", result);
+    // db.upload(v).await?;
+    // let mut prev = v;
+    // for result in db.identify(v).await?{
+    //     prev = v.aggregate_into(result);
+    // }
+
+    // db.upload(prev)
     Ok(())
 }
 

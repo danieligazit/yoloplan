@@ -1,5 +1,4 @@
 use serde;
-
 pub type OneOrMany<T> = Vec<T>;
 
 pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
