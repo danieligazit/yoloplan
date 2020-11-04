@@ -1,0 +1,33 @@
+{
+   "definitions": {
+      
+      "Event":{
+         "title": "Asdlfk",
+         "type": "object",
+         
+         "properties": {
+         
+            "title": {
+               "type": "string",
+               "identify": "match_exact"
+            },
+               
+            "time": {
+               "type": "string"
+            },
+               
+            "description": {
+               "type": "string",
+               "identify": "match_levenshtein"
+            },
+            
+            "price": {
+               "type": "f64",
+               "minimum": 0
+            }
+
+         },
+         "required": ["title", "time", "description", "price"]
+      }
+   }
+ }

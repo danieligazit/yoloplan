@@ -67,7 +67,6 @@ pub enum Extracted {
     Configuration(Configuration),
 }
 
-
 impl Extracted {
     pub fn get_queue_name(&self) -> String {
         match self {
@@ -80,4 +79,4 @@ impl Extracted {
             Extracted::Configuration(config) => config.ds_name.to_owned(),
         }
     }
-}   
+}
